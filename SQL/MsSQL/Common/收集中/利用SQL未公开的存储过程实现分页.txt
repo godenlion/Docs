@@ -1,0 +1,28 @@
+﻿
+/******************************************
+利用SQL未公开的存储过程实现分页   
+*********************************************/
+
+if   exists   (select   *   from   dbo.sysobjects   where   id   =   object_id(N'[dbo].[p_splitpage]')   and   OBJECTPROPERTY(id,   N'IsProcedure')   =   1)   
+  drop   procedure   [dbo].[p_splitpage]   
+  GO   
+    
+  --利用SQL未公开的存储过程实现分页   
+  create   procedure   p_splitpage         
+  @sql   nvarchar(4000), --要执行的sql语句   
+  @currentpage   int=2,   --要显示的页码   
+  @pagesize   int=10, --每页的大小   
+  @recordcount   int=0   out, --记录数   
+  @pagecount   int=0   out --总页数   
+  as   
+  set   nocount   on   
+  declare   @p1   int   
+    
+  exec   sp_cursoropen   @p1   output,@sql,@scrollopt=1,@ccopt=1,@rowcount=@pagecount   output   
+    
+  select   @recordcount=@pagecount,@pagecount=ceiling(1.0*@pagecount/@pagesize)       ,@currentpage=(@currentpage-1)*@pagesize+1       
+  select   @recordcount   recordcount   ,@pagecount     pagecount,@currentpage     currentpage   
+  exec   sp_cursorfetch   @p1,16,@currentpage,@pagesize     
+  exec   sp_cursorclose   @p1   
+  go   
+

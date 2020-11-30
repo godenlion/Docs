@@ -1,0 +1,64 @@
+﻿一 数据库迁移及修改编码	
+1	将DB_APOD数据库脱机
+2	复制DB_APOD数据库文件到zh-olddb-srv
+3	附加DB_APOD数据库到zh-olddb-srv
+4	"备份两个有编码问题的方法:
+1. GetBarCodeListMES 
+2. FN_MO_SCHEDULE"
+5	"删除两个方法: 
+DROP FUNCTION GetBarCodeListMES
+DROP FUNCTION FN_MO_SCHEDULE"
+6	"进行数据库编码的更新
+ALTER DATABASE DB_APOD COLLATE Chinese_PRC_CI_AS"
+7	"修改所有数据库字段的排序方式:
+-- 更新所有字段的排序方式为""数据库默认""
+EXEC sp_configure 'allow updates',1 
+RECONFIGURE WITH OVERRIDE
+
+UPDATE SYSCOLUMNS
+SET COLLATIONID=53284 -- 此值最好在使用前做测试
+WHERE COLLATIONID IS NOT NULL
+
+EXEC sp_configure 'allow updates',0
+RECONFIGURE WITH OVERRIDE
+"
+8	分离数据库DB_APOD
+9	复制DB_APOD数据库文件到 zh-acpdb-srv
+10	附加DB_APOD数据库到zh-acpdb-srv
+11	修改DB_APOD数据库的兼容模式为"SQL SERVER 2005 (9.0)"
+12	"执行数据库检查
+DBCC CHECKDB"
+13	重建索引
+	
+二 解除数据库服务器使用内存最高不超过1.8G的瓶颈,提升最高使用内存到8G	
+1	"启用锁定内存页选项(Windows)
+1、在""开始""菜单上单击""运行""子菜单，然后在""打开""框中键入""gpedit.msc""。 
+2、在""组策略""控制台上，展开""计算机配置""，然后展开""Windows 设置""。 
+3、展开""安全设置""，然后展开""本地策略""。 
+4、选择""用户权限分配""复选框。 
+5、详细资料窗格中随即显示出策略。 
+6、在详细资料窗格中，双击""锁定内存页""。 
+7、在""本地安全策略设置""对话框中，单击""添加""按钮。 
+8、在""选择用户或组""对话框中，添加有权运行 sqlservr.exe 的帐户。
+"
+2	"启用SQL的AWE
+            sp_configure 'show advanced options', 1
+            RECONFIGURE
+            GO
+            sp_configure 'awe enabled', 1
+            RECONFIGURE
+            GO  --重新启动 SQL Server 之后，会将以下消息写入 SQL Server 错误日志中：“已启用地址窗口化扩展插件。”
+
+配置内存：
+            sp_configure 'min server memory', 1024
+            RECONFIGURE
+            GO
+            sp_configure 'max server memory', 6144
+            RECONFIGURE
+            GO  --在此示例中，内存设置引导缓冲池在 1 GB 和 6 GB 之间动态管理 AWE 映射内存。如果其他应用程序需要额外的内存，则 SQL Server 可释放不再需要的已分配 AWE 映射内存。在此示例中，AWE 映射内存最多只能释放 1 GB。
+
+
+"
+3	"重启SQL
+net stop mssqlserver
+net start mssqlserver"
